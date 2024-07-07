@@ -2,15 +2,17 @@
 -Add castling
 -Implement 50 move rule
 -Implement 3 repetitions
+-Refactor
 '''
+import copy
 class Cell:
     def __init__(self,x,y,piece):
         self.x=x
         self.y=y
         self.piece=piece
 class Piece:
-    def __init__(self,board,label,x,y,color):
-        self.parentboard = board
+    def __init__(self,game,label,x,y,color):
+        self.parentgame = game
         self.label=label
         self.x=x
         self.y=y
@@ -23,11 +25,12 @@ class Piece:
         self.updatemoves()
     def kill(self):
         self.isalive=False
-        self.parentboard.cells[self.x][self.y].piece=None
-    def move(self,game,x,y): #outdated
-        board=game.curboard
-        prev=game.prevstates[-1]
+    def move(self,x,y):
+        board=self.parentgame.curboard
+        prev=self.parentgame.prevstates[-1]
         if islegal(x,y):
+            nboard=copy.deepcopy(board)
+            self.parentgame.prevstates.append(board)
             self.hasmoved=True
             piecetokill=None
             for outerlist in self.validmoves:
@@ -37,9 +40,11 @@ class Piece:
                     break
             if piecetokill!=None:
                 piecetokill.kill()
+                nboard.cells[piecetokill.x][piecetokill.y].piece=None
             
-            board.cells[self.x][self.y].piece=None
-            board.cells[x][y].piece=self
+            nboard.cells[self.x][self.y].piece=None
+            nboard.cells[x][y].piece=self
+            self.parentgame.curboard=nboard
         else:
             print("invalid move")
     def islegal(self,x,y):
