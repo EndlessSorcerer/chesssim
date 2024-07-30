@@ -1,5 +1,6 @@
 '''functionalities needed:
 -Add castling
+-Add checking
 -Implement 50 move rule
 -Implement 3 repetitions
 -Refactor
