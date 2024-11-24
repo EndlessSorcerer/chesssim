@@ -4,6 +4,8 @@
 -Implement 50 move rule
 -Implement 3 repetitions
 -Refactor
+-En passant (done but needs testing)
+-Add promotion
 '''
 import copy
 class Cell:
@@ -27,7 +29,6 @@ class Piece:
         self.targets=[]
         self.symbol=''
         self.hasmoved=False
-        self.updatemoves()
     def kill(self):
         self.isalive=False
     def move(self,ncell):
@@ -60,6 +61,10 @@ class Piece:
             if x==coordinates[0] and y==coordinates[1]:
                 return True
         return False
+    def printmoves(self):
+        print(f"printing moves for {self.label}")
+        for move in self.validmoves:
+            print(move)
 class Rook(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
@@ -172,29 +177,45 @@ class Pawn(Piece):
         self.symbol='p'
     def updatemoves(self):
         board = self.cell.board
-        # prev = board.game.prevstates[-1]
-        direction=self.color
+        prev=None
+        if len(board.game.prevstates)>0:
+            prev = board.game.prevstates[-1]
+        # direction=self.color
+        if self.color==0:
+            direction=1
+        else:
+            direction=-1
+        # print(f"direction for {self.label} {direction}")
         cx=self.cell.x
         cy=self.cell.y
+        # print(f"cx {cx} cx+direction {cx+direction}")
+
+        #Normal forward movement
         if board.cells[cx+direction][cy].piece==None:
             self.validmoves.append([[cx+direction,cy],None])
             if self.hasmoved==False and board.cells[cx+2*direction][cy].piece==None:
                 self.validmoves.append([[cx+2*direction,cy],None])
-        if board.getcell(cx+direction,cy+1) and board.getcell(cx+direction,cy+1).piece!=None and board.getcell(cx+direction,cy+1).piece.color!=direction:
-            self.validmoves.append([[cx+direction,cy+1],board.cells[cx+direction][cy+1].piece])
-            self.targets.append(board.cells[cx+direction][cy+1].piece)
-        if board.getcell(cx+direction,cy-1) and board.getcell(cx+direction,cy-1).piece!=None and board.getcell(cx+direction,cy-1).piece.color!=direction:
-            self.validmoves.append([[cx+direction,cy-1],board.cells[cx+direction][cy-1].piece])
-            self.targets.append(board.cells[cx+direction][cy-1].piece)
-        if board.getcell(cx,cy+1) and board.getcell(cx,cy+1).piece!=None and board.getcell(cx,cy+1).piece.color!=direction and isinstance(board.getcell(cx,cy+1).piece,Pawn):
-            if prev.getcell(cx+2*direction,cy+1) and prev.getcell(cx+2*direction,cy+1).piece.color==board.getcell(cx,cy+1).piece.color and prev.getcell(cx+2*direction,cy+1).piece.label==board.getcell(cx,cy+1).piece.label:
-                self.validmoves.append([[cx+direction,cy+1],board.cells[cx][cy+1].piece])
-                self.targets.append(board.cells[cx][cy+1].piece)
-        if board.getcell(cx,cy-1) and board.getcell(cx,cy-1).piece!=None and board.getcell(cx,cy-1).piece.color!=direction and isinstance(board.getcell(cx,cy-1).piece,Pawn):
-            if prev.getcell(cx+2*direction,cy-1) and prev.getcell(cx+2*direction,cy-1).piece.color==board.getcell(cx,cy-1).piece.color and prev.getcell(cx+2*direction,cy-1).piece.label==board.getcell(cx,cy-1).piece.label:
-                self.validmoves.append([[cx+direction,cy-1],board.cells[cx][cy-1].piece])
-                self.targets.append(board.cells[cx][cy-1].piece)
         
+        #Diagonal captures
+        for z in [1,-1]:
+            nx=cx+direction
+            ny=cy+z
+            isvalidcell=board.getcell(nx,ny) and board.getcell(nx,ny).piece!=None
+            if isvalidcell and board.getcell(nx,ny).piece.color!=direction:
+                self.validmoves.append([[nx,ny],board.cells[nx][ny].piece])
+                self.targets.append(board.cells[nx][ny].piece)
+
+        #For en passant check (work in progress)
+        if prev!=None:
+            for z in [1,-1]:
+                nx=cx
+                ny=cy+z
+                isvalidcell=board.getcell(nx,ny)
+                if isvalidcell and board.getcell(nx,ny).piece!=None and board.getcell(nx,ny).piece.color!=direction and isinstance(board.getcell(nx,ny).piece,Pawn):
+                    if prev.getcell(nx+2*direction,ny) and prev.getcell(nx+2*direction,ny).piece.color==board.getcell(nx,ny).piece.color and prev.getcell(nx+2*direction,ny).piece.label==board.getcell(nx,ny).piece.label:
+                        self.validmoves.append([[nx+direction,ny],board.cells[nx][ny].piece])
+                        self.targets.append(board.cells[nx][ny].piece)
+
 
 class Board:
     def __init__(self,game):
@@ -255,6 +276,8 @@ class Board:
             for j in range(0,8):
                 if self.cells[i][j].piece!=None:
                     self.activepieces.append(self.cells[i][j].piece)
+        for piece in self.activepieces:
+            piece.updatemoves()
     def getcell(self,x,y):
         if x<0 or y<0 or x>7 or y>7:
             return None
@@ -267,9 +290,6 @@ class Board:
                 else:
                     print(". ",end="")
             print("\n")
-# class Player:
-#     def __init__(self,color):
-#         self.color=color
 
 class Game:
     def __init__(self):
@@ -280,3 +300,21 @@ class Game:
 
 game=Game()
 game.curboard.printboard()
+game.curboard.cells[0][6].piece.printmoves()
+
+
+#Scrap
+#previous en passant code
+    # isvalidcell3=board.getcell(cx,cy+1)
+
+    # if isvalidcell3 and board.getcell(cx,cy+1).piece!=None and board.getcell(cx,cy+1).piece.color!=direction and isinstance(board.getcell(cx,cy+1).piece,Pawn):
+    #     if prev.getcell(cx+2*direction,cy+1) and prev.getcell(cx+2*direction,cy+1).piece.color==board.getcell(cx,cy+1).piece.color and prev.getcell(cx+2*direction,cy+1).piece.label==board.getcell(cx,cy+1).piece.label:
+    #         self.validmoves.append([[cx+direction,cy+1],board.cells[cx][cy+1].piece])
+    #         self.targets.append(board.cells[cx][cy+1].piece)
+
+    # isvalidcell4=board.getcell(cx,cy-1)
+
+    # if isvalidcell4 and board.getcell(cx,cy-1).piece!=None and board.getcell(cx,cy-1).piece.color!=direction and isinstance(board.getcell(cx,cy-1).piece,Pawn):
+    #     if prev.getcell(cx+2*direction,cy-1) and prev.getcell(cx+2*direction,cy-1).piece.color==board.getcell(cx,cy-1).piece.color and prev.getcell(cx+2*direction,cy-1).piece.label==board.getcell(cx,cy-1).piece.label:
+    #         self.validmoves.append([[cx+direction,cy-1],board.cells[cx][cy-1].piece])
+    #         self.targets.append(board.cells[cx][cy-1].piece)
