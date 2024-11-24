@@ -1,6 +1,6 @@
 '''functionalities needed:
--Add castling (partially added, when making move with king if target is same color then it'd be rook and add castling logic there)
--Add checking
+-Add castling (partially added, when making move using move() with king if target is same color then it'd be rook and add castling logic there)
+-Add checking (means any move that leads to checking is also eliminated from valid moves list) (done needs testing)
 -Implement 50 move rule
 -Implement 3 repetitions
 -Refactor
@@ -9,7 +9,7 @@
 '''
 import copy
 def checkvalidcell(nx,ny):
-    return checkvalidcell(nx,ny)
+    return nx>=0 and ny>=0 and nx<8 and ny<8
 class Cell:
     def __init__(self,board,x,y,piece):
         self.x=x
@@ -33,30 +33,19 @@ class Piece:
         self.hasmoved=False
     def kill(self):
         self.isalive=False
-    def move(self,ncell):
-        x=ncell.x
-        y=ncell.y
-        board=self.parentgame.curboard
-        prev=self.parentgame.prevstates[-1]
-        if islegal(x,y):
-            nboard=copy.deepcopy(board)
-            self.parentgame.prevstates.append(board)
-            self.hasmoved=True
-            piecetokill=None
-            for outerlist in self.validmoves:
-                coordinates = outerlist[0]
-                if x==coordinates[0] and y==coordinates[1]:
-                    piecetokill=outerlist[1]
-                    break
-            if piecetokill!=None:
-                piecetokill.kill()
-                nboard.cells[piecetokill.x][piecetokill.y].piece=None
-            
-            nboard.cells[self.x][self.y].piece=None
-            nboard.cells[x][y].piece=self
-            self.parentgame.curboard=nboard
-        else:
-            print("invalid move")
+    def removeinvalidmoves(self):
+        for move in self.validmoves:
+            ox=self.cell.x
+            oy=self.cell.y
+            nx=move[0][0]
+            ny=move[0][1]
+            potentialboard=self.parentgame.move(ox,oy,nx,ny)
+            if potentialboard==None:
+                print(f"Something went wrong: invalid move {self.label} from {ox}-{oy} to {nx}-{ny} in movelist")
+                return
+            if potentialboard.kings[self.color].ischecked():
+                self.validmoves.remove(move)
+            del potentialboard
     def islegal(self,x,y):
         for outerlist in self.validmoves:
             coordinates = outerlist[0]
@@ -67,11 +56,15 @@ class Piece:
         print(f"printing moves for {self.label}")
         for move in self.validmoves:
             print(move)
+    def updatemoves(self):
+        self.updatemoveshelp()
+        if not self.parentgame.iniflag:
+            self.removeinvalidmoves()
 class Rook(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
         self.symbol='R'
-    def updatemoves(self):
+    def updatemoveshelp(self):
         board = self.cell.board
         a=[1,0,-1,0]
         b=[0,1,0,-1]
@@ -91,7 +84,7 @@ class Bishop(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
         self.symbol='B'
-    def updatemoves(self):
+    def updatemoveshelp(self):
         board = self.cell.board
         a=[1,1,-1,-1]
         b=[1,-1,1,-1]
@@ -111,7 +104,7 @@ class Knight(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
         self.symbol='H'
-    def updatemoves(self):
+    def updatemoveshelp(self):
         board = self.cell.board
         a=[1,1,-1,-1,2,2,-2,-2]
         b=[2,-2,2,-2,1,-1,1,-1]
@@ -130,7 +123,7 @@ class Queen(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
         self.symbol='Q'
-    def updatemoves(self):
+    def updatemoveshelp(self):
         board = self.cell.board
         a=[1,1,-1,-1,1,0,-1,0]
         b=[1,-1,1,-1,0,1,0,-1]
@@ -151,7 +144,7 @@ class King(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
         self.symbol='K'
-    def updatemoves(self):
+    def updatemoveshelp(self):
         board = self.cell.board
         a=[1,1,1,0,0,-1,-1,-1]
         b=[0,1,-1,1,-1,0,1,-1]
@@ -171,17 +164,15 @@ class King(Piece):
                 cx=self.cell.x
                 oy=self.cell.y
                 cy=self.cell.y
-                while checkvalidcell(cx,cy):
+                while checkvalidcell(cx,cy+z):
                     cy=cy+z
                     isrook=board.cells[cx][cy].piece!=None and board.cells[cx][cy].piece.symbol=='R'
                     iscastleablerook = isrook and board.cells[cx][cy].piece.color==self.color and board.cells[cx][cy].piece.hasmoved==False
-                    if castleablerook:
+                    if iscastleablerook:
                         self.validmoves.append([[cx,oy+z*2],board.cells[cx][cy].piece])
-                        self.targets.append(board.cells[cx][cy].piece)
-
-
-            
-    def ischecked(self,board):
+                        self.targets.append(board.cells[cx][cy].piece)            
+    def ischecked(self):
+        board=self.cell.board
         for piece in board.activepieces:
             if piece.color!=self.color:
                 if self in piece.targets:
@@ -192,7 +183,7 @@ class Pawn(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
         self.symbol='p'
-    def updatemoves(self):
+    def updatemoveshelp(self):
         board = self.cell.board
         prev=None
         if len(board.game.prevstates)>0:
@@ -240,6 +231,7 @@ class Board:
         self.players=[]
         self.activepieces=[]
         self.game=game
+        self.kings=[None,None]
         self.reset()
     def reset(self):
         # figure out what to do with updatemoves
@@ -293,6 +285,8 @@ class Board:
             for j in range(0,8):
                 if self.cells[i][j].piece!=None:
                     self.activepieces.append(self.cells[i][j].piece)
+                    if self.cells[i][j].piece.symbol=="K":
+                        self.kings[self.cells[i][j].piece.color]=self.cells[i][j].piece
         for piece in self.activepieces:
             piece.updatemoves()
     def getcell(self,x,y):
@@ -312,12 +306,70 @@ class Game:
     def __init__(self):
         self.prevstates = []
         self.whiteturn = True
+        self.iniflag=True
         self.curboard = Board(self)
+        self.iniflag=False
+        self.game_end=False
+    def move(self,ox,oy,nx,ny):
+        nboard=copy.deepcopy(self.curboard)
+        ocell=nboard.cells[ox][oy]
+        ncell=nboard.cells[nx][ny]
+        if ocell.piece==None:
+            return None
+        piecetomove=ocell.piece
+        x=ncell.x
+        y=ncell.y
+        board=self.curboard
+        prev=None
+        if len(self.prevstates)>0:
+            prev=self.prevstates[-1]
+        if piecetomove.islegal(x,y):
+            # self.parentgame.prevstates.append(board)
+            piecetomove.hasmoved=True
+            piecetokill=None
+            for outerlist in piecetomove.validmoves:
+                coordinates = outerlist[0]
+                if x==coordinates[0] and y==coordinates[1]:
+                    piecetokill=outerlist[1]
+                    break
+            if piecetokill!=None:
+                piecetokill.kill()
+                nboard.cells[ox][oy].piece=None            
+            nboard.cells[ox][oy].piece=None
+            nboard.cells[x][y].piece=piecetomove
+            piecetomove.cell=nboard.cells[x][y]
+            # self.parentgame.curboard=nboard
+            return nboard
+        else:
+            return None
+    def makepossiblemove(self,ox,oy,nx,ny):
+        board=self.curboard
+        if board.cells[ox][oy].piece==None:
+            print("no piece to move!")
+            return
+        board.cells[ox][oy].piece.updatemoves()
+        nboard=self.move(ox,oy,nx,ny)
+        if nboard==None:
+            print("invalid move")
+        else:
+            self.prevstates.append(board)
+            self.curboard=nboard
+    def gamestart(self):
+        while not self.game_end:
+            # print(f'input your move in the format: x1 y1 x2 y2')
+            game.curboard.printboard()
+            s=input(f'input your move in the format x1 y1 x2 y2: ')
+            l=s.split()
+            x1=int(l[0])
+            y1=int(l[1])
+            x2=int(l[2])
+            y2=int(l[3])
+            self.makepossiblemove(x1,y1,x2,y2)
     # def start(self):
 
 game=Game()
-game.curboard.printboard()
-game.curboard.cells[0][6].piece.printmoves()
+game.gamestart()
+# game.curboard.cells[0][6].piece.printmoves()
 
 
 #Scrap
