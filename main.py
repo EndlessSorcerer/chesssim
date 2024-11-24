@@ -1,5 +1,5 @@
 '''functionalities needed:
--Add castling
+-Add castling (partially added, when making move with king if target is same color then it'd be rook and add castling logic there)
 -Add checking
 -Implement 50 move rule
 -Implement 3 repetitions
@@ -8,6 +8,8 @@
 -Add promotion
 '''
 import copy
+def checkvalidcell(nx,ny):
+    return checkvalidcell(nx,ny)
 class Cell:
     def __init__(self,board,x,y,piece):
         self.x=x
@@ -76,7 +78,7 @@ class Rook(Piece):
         for i in range(4):
             nx=self.cell.x
             ny=self.cell.y
-            while nx+a[i]>=0 and ny+b[i]>=0 and nx+a[i]<8 and ny+b[i]<8:
+            while checkvalidcell(nx+a[i],ny+b[i]):
                 nx=nx+a[i]
                 ny=ny+b[i]
                 if board.cells[nx][ny].piece!=None:
@@ -96,7 +98,7 @@ class Bishop(Piece):
         for i in range(4):
             nx=self.cell.x
             ny=self.cell.y
-            while nx+a[i]>=0 and ny+b[i]>=0 and nx+a[i]<8 and ny+b[i]<8:
+            while checkvalidcell(nx+a[i],ny+b[i]):
                 nx=nx+a[i]
                 ny=ny+b[i]
                 if board.cells[nx][ny].piece!=None:
@@ -116,7 +118,7 @@ class Knight(Piece):
         for i in range(8):
             nx=self.cell.x+a[i]
             ny=self.cell.y+b[i]
-            if nx>=0 and ny>=0 and nx<8 and ny<8:
+            if checkvalidcell(nx,ny):
                 if board.cells[nx][ny].piece!=None:
                     if board.cells[nx][ny].piece.color!=self.color:
                         self.validmoves.append([[nx,ny],board.cells[nx][ny].piece])
@@ -135,7 +137,7 @@ class Queen(Piece):
         for i in range(4):
             nx=self.cell.x
             ny=self.cell.y
-            while nx+a[i]>=0 and ny+b[i]>=0 and nx+a[i]<8 and ny+b[i]<8:
+            while checkvalidcell(nx+a[i],ny+b[i]):
                 nx=nx+a[i]
                 ny=ny+b[i]
                 if board.cells[nx][ny].piece!=None:
@@ -156,7 +158,7 @@ class King(Piece):
         for i in range(8):
             nx=self.cell.x+a[i]
             ny=self.cell.y+b[i]
-            if nx>=0 and ny>=0 and nx<8 and ny<8:
+            if checkvalidcell(nx,ny):
                 if board.cells[nx][ny].piece!=None:
                     if board.cells[nx][ny].piece.color!=self.color:
                         #incomplete implement check functionality for all pieces
@@ -164,6 +166,21 @@ class King(Piece):
                         self.targets.append(board.cells[nx][ny].piece)
                     continue
                 self.validmoves.append([[nx,ny],None])
+        if self.hasmoved==False:
+            for z in [1,-1]:
+                cx=self.cell.x
+                oy=self.cell.y
+                cy=self.cell.y
+                while checkvalidcell(cx,cy):
+                    cy=cy+z
+                    isrook=board.cells[cx][cy].piece!=None and board.cells[cx][cy].piece.symbol=='R'
+                    iscastleablerook = isrook and board.cells[cx][cy].piece.color==self.color and board.cells[cx][cy].piece.hasmoved==False
+                    if castleablerook:
+                        self.validmoves.append([[cx,oy+z*2],board.cells[cx][cy].piece])
+                        self.targets.append(board.cells[cx][cy].piece)
+
+
+            
     def ischecked(self,board):
         for piece in board.activepieces:
             if piece.color!=self.color:
