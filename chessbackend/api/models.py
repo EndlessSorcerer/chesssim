@@ -1,12 +1,4 @@
-'''functionalities needed:
--Add castling (partially added, when making move using move() with king if target is same color then it'd be rook and add castling logic there)
--Add checking (means any move that leads to checking is also eliminated from valid moves list) (done needs testing)
--Implement 50 move rule
--Implement 3 repetitions
--Refactor
--En passant (done but needs testing)
--Add promotion
-'''
+from django.db import models
 import copy
 def checkvalidcell(nx,ny):
     return nx>=0 and ny>=0 and nx<8 and ny<8
@@ -293,16 +285,23 @@ class Board:
         if x<0 or y<0 or x>7 or y>7:
             return None
         return self.cells[x][y]
-    def printboard(self):
+    def serializeboard(self):
+        boardstr=""
         for i in range(0,8):
             for j in range(0,8):
                 if self.cells[i][j].piece!=None:
-                    print(self.cells[i][j].piece.symbol+" ",end="")
+                    if self.cells[i][j].piece.color==0:
+                        col="w"
+                    else:
+                        col="b"
+                    # print(self.cells[i][j].piece.symbol+col+" ",end="")
+                    boardstr=boardstr+self.cells[i][j].piece.symbol+col+" "
                 else:
-                    print(". ",end="")
-            print("\n")
+                    # print(". ",end="")
+                    boardstr=boardstr+". "
+        return boardstr
 
-class Game:
+class Game():
     def __init__(self):
         self.prevstates = []
         self.whiteturn = True
@@ -358,10 +357,11 @@ class Game:
         else:
             self.prevstates.append(board)
             self.curboard=nboard
+            self.turncount=self.turncount+1
     def gamestart(self):
         while not self.game_end:
             self.colortomove=self.turncount%2
-            game.curboard.printboard()
+            self.curboard.printboard()
             s=input(f'input your move in the format x1 y1 x2 y2: ')
             l=s.split()
             x1=int(l[0])
@@ -369,29 +369,44 @@ class Game:
             x2=int(l[2])
             y2=int(l[3])
             self.makepossiblemove(x1,y1,x2,y2)
-            self.turncount=self.turncount+1
-    # def start(self):
 
-game=Game()
-game.gamestart()
-# game.curboard.cells[0][6].piece.printmoves()
+class GameWrapper(models.Model):
+    white = models.CharField(max_length=100)
+    black = models.CharField(max_length=100)
+    moves = models.TextField(default="")
+    current_turn = models.CharField(max_length=10, choices=[('white', 'White'), ('black', 'Black')], default='white')
+    status = models.CharField(max_length=10, choices=[('ongoing', 'Ongoing'), ('finished', 'Finished')], default='ongoing')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    serializedboard = models.TextField(default="")
+    def to_game_instance(self):
+        s=self.moves
+        ss=s.split(",")
+        game_instance=Game()
+        for s in ss:
+            if game_instance.game_end:
+                break
+            game_instance.colortomove=game_instance.turncount%2
+            # game.curboard.printboard()
+            s=input(f'input your move in the format x1 y1 x2 y2: ')
+            l=s.split()
+            x1=int(l[0])
+            y1=int(l[1])
+            x2=int(l[2])
+            y2=int(l[3])
+            game_instance.makepossiblemove(x1,y1,x2,y2)
+        return game_instance
+    def add_move(self, move):
+        l=move.split()
+        x1=int(l[0])
+        y1=int(l[1])
+        x2=int(l[2])
+        y2=int(l[3])
+        game_instance = self.to_game_instance()
+        game_instance.makepossiblemove(x1,y1,x2,y2)
+        self.moves=self.moves+","+move
+        self.serializedboard=game_instance.serializeboard()
+    def __str__(self):
+        return f"Game {self.id}: {self.white} vs {self.black}"
 
-#problematic tests:
-- 1 0 3 0, 6 0 4 0
-
-#Scrap
-#previous en passant code
-    # isvalidcell3=board.getcell(cx,cy+1)
-
-    # if isvalidcell3 and board.getcell(cx,cy+1).piece!=None and board.getcell(cx,cy+1).piece.color!=direction and isinstance(board.getcell(cx,cy+1).piece,Pawn):
-    #     if prev.getcell(cx+2*direction,cy+1) and prev.getcell(cx+2*direction,cy+1).piece.color==board.getcell(cx,cy+1).piece.color and prev.getcell(cx+2*direction,cy+1).piece.label==board.getcell(cx,cy+1).piece.label:
-    #         self.validmoves.append([[cx+direction,cy+1],board.cells[cx][cy+1].piece])
-    #         self.targets.append(board.cells[cx][cy+1].piece)
-
-    # isvalidcell4=board.getcell(cx,cy-1)
-
-    # if isvalidcell4 and board.getcell(cx,cy-1).piece!=None and board.getcell(cx,cy-1).piece.color!=direction and isinstance(board.getcell(cx,cy-1).piece,Pawn):
-    #     if prev.getcell(cx+2*direction,cy-1) and prev.getcell(cx+2*direction,cy-1).piece.color==board.getcell(cx,cy-1).piece.color and prev.getcell(cx+2*direction,cy-1).piece.label==board.getcell(cx,cy-1).piece.label:
-    #         self.validmoves.append([[cx+direction,cy-1],board.cells[cx][cy-1].piece])
-    #         self.targets.append(board.cells[cx][cy-1].piece)
-    
+# Create your models here.
