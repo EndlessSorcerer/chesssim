@@ -14,9 +14,11 @@
 
 
 from django.urls import path
-from .views import GameMatch,GameList
+from .views import GameList, GameMatch, RegisterView, LoginView
 
 urlpatterns = [
-    path('game/<int:game_id>/', GameMatch.as_view(), name='game_match'),
-    path('game/', GameList.as_view(), name='game_list')
+    path('<int:game_id>/', GameMatch.as_view(), name='game_match'),
+    path('', GameList.as_view(), name='game_list'),
+    path('register/', RegisterView.as_view(), name='register'),
+    path('login/', LoginView.as_view(), name='login'),
 ]

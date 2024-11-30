@@ -1,4 +1,11 @@
 from django.db import models
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.models import BaseUserManager
+from django.contrib.auth.models import AbstractUser
+from django.conf import settings
+
 import copy
 def checkvalidcell(nx,ny):
     return nx>=0 and ny>=0 and nx<8 and ny<8
@@ -370,9 +377,73 @@ class Game():
             y2=int(l[3])
             self.makepossiblemove(x1,y1,x2,y2)
 
+# class User(models.Model):
+#     username = models.CharField(max_length=255, unique=True)
+#     email = models.EmailField(unique=True)
+#     password = models.CharField(max_length=255)
+#     first_name = models.CharField(max_length=100, blank=True)
+#     last_name = models.CharField(max_length=100, blank=True)
+#     date_joined = models.DateTimeField(default=timezone.now)
+#     is_active = models.BooleanField(default=True)
+#     is_staff = models.BooleanField(default=False)  # Staff user (admin privileges)
+#     last_login = models.DateTimeField(null=True, blank=True)
+
+#     def set_password(self, raw_password):
+#         self.password = make_password(raw_password)
+
+#     def check_password(self, raw_password):
+#         return check_password(raw_password, self.password)
+
+#     def __str__(self):
+#         return self.username
+
+#     def clean(self):
+#         if not self.username:
+#             raise ValidationError("Username is required")
+#         if not self.email:
+#             raise ValidationError("Email is required")
+#         if User.objects.filter(username=self.username).exists():
+#             raise ValidationError(f"Username '{self.username}' is already taken.")
+#         if User.objects.filter(email=self.email).exists():
+#             raise ValidationError(f"Email '{self.email}' is already registered.")
+
+class CustomUserManager(BaseUserManager):
+    def create_user(self, username, email, password=None, **extra_fields):
+        """
+        Create and return a regular user with an email and password.
+        """
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(username=username, email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username, email, password=None, **extra_fields):
+        """
+        Create and return a superuser with email, password, and other fields.
+        """
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        return self.create_user(username, email, password, **extra_fields)
+
+class User(AbstractUser):
+    email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True)
+    date_joined = models.DateTimeField(default=timezone.now)
+    last_login = models.DateTimeField(null=True, blank=True)
+    
+    objects = CustomUserManager()  # Use the custom manager
+
+    def __str__(self):
+        return self.username
+
 class GameWrapper(models.Model):
-    white = models.CharField(max_length=100)
-    black = models.CharField(max_length=100)
+    white = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='white_games', on_delete=models.CASCADE)
+    black = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='black_games', on_delete=models.CASCADE)
     moves = models.TextField(default="")
     current_turn = models.CharField(max_length=10, choices=[('white', 'White'), ('black', 'Black')], default='white')
     status = models.CharField(max_length=10, choices=[('ongoing', 'Ongoing'), ('finished', 'Finished')], default='ongoing')
