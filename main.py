@@ -313,13 +313,16 @@ class Game:
         self.turncount=0
         self.colortomove=0
     def move(self,ox,oy,nx,ny):
+        print(f'inside move for {ox}-{oy} to {nx}-{ny}')
         nboard=copy.deepcopy(self.curboard)
         ocell=nboard.cells[ox][oy]
         ncell=nboard.cells[nx][ny]
         if ocell.piece==None:
+            print(f'Piece doesnt exist')
             return None
         piecetomove=ocell.piece
-        if piecetomove.color!=piecetomove.parentgame.colortomove:
+        if piecetomove.color!=self.colortomove:
+            print(f'Piece wrong color')
             return None
         x=ncell.x
         y=ncell.y
@@ -345,6 +348,7 @@ class Game:
             # self.parentgame.curboard=nboard
             return nboard
         else:
+            print(f'Piece cant make illegal move')
             return None
     def makepossiblemove(self,ox,oy,nx,ny):
         board=self.curboard
@@ -362,6 +366,7 @@ class Game:
         while not self.game_end:
             self.colortomove=self.turncount%2
             game.curboard.printboard()
+            print(f"{self.colortomove} move")
             s=input(f'input your move in the format x1 y1 x2 y2: ')
             l=s.split()
             x1=int(l[0])
@@ -377,7 +382,7 @@ game.gamestart()
 # game.curboard.cells[0][6].piece.printmoves()
 
 #problematic tests:
-- 1 0 3 0, 6 0 4 0
+# - 1 0 3 0, 6 0 4 0
 
 #Scrap
 #previous en passant code

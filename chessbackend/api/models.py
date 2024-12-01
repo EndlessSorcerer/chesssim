@@ -301,12 +301,18 @@ class Board:
                         col="w"
                     else:
                         col="b"
-                    # print(self.cells[i][j].piece.symbol+col+" ",end="")
                     boardstr=boardstr+self.cells[i][j].piece.symbol+col+" "
                 else:
-                    # print(". ",end="")
                     boardstr=boardstr+". "
         return boardstr
+    def printboard(self):
+        for i in range(0,8):
+            for j in range(0,8):
+                if self.cells[i][j].piece!=None:
+                    print(self.cells[i][j].piece.symbol+" ",end="")
+                else:
+                    print(". ",end="")
+            print("\n")
 
 class Game():
     def __init__(self):
@@ -319,13 +325,16 @@ class Game():
         self.turncount=0
         self.colortomove=0
     def move(self,ox,oy,nx,ny):
+        print(f'inside move for {ox}-{oy} to {nx}-{ny}')
         nboard=copy.deepcopy(self.curboard)
         ocell=nboard.cells[ox][oy]
         ncell=nboard.cells[nx][ny]
         if ocell.piece==None:
+            print(f'Piece doesnt exist')
             return None
         piecetomove=ocell.piece
-        if piecetomove.color!=piecetomove.parentgame.colortomove:
+        if piecetomove.color!=self.colortomove:
+            print(f'Piece wrong color')
             return None
         x=ncell.x
         y=ncell.y
@@ -351,11 +360,15 @@ class Game():
             # self.parentgame.curboard=nboard
             return nboard
         else:
+            print(f'Piece cant make illegal move')
             return None
     def makepossiblemove(self,ox,oy,nx,ny):
         board=self.curboard
         if board.cells[ox][oy].piece==None:
             print("no piece to move!")
+            return
+        if board.cells[ox][oy].piece.color!=board.cells[ox][oy].piece.parentgame.colortomove:
+            print("wrong color")
             return
         board.cells[ox][oy].piece.updatemoves()
         nboard=self.move(ox,oy,nx,ny)
@@ -456,13 +469,15 @@ class GameWrapper(models.Model):
         game_instance=Game()
         print("ss: ",ss)
         for s in ss:
+            print(f"applying {s} to ")
+            game_instance.curboard.printboard
             if game_instance.game_end:
                 break
             game_instance.colortomove=game_instance.turncount%2
             # game.curboard.printboard()
             l=s.split()
             if len(l)<4:
-                break
+                continue
             print("l: ",l)
             x1=int(l[0])
             y1=int(l[1])

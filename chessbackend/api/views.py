@@ -111,6 +111,7 @@ class GameMatch(APIView):
         if not move:
             return Response({"error": "Move is required"}, status=status.HTTP_400_BAD_REQUEST)
         game.add_move(move)
+        game.save()
         serializer = GameSerializer(game) 
         return Response(serializer.data)
 
