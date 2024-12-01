@@ -2,10 +2,15 @@ from rest_framework import serializers
  
 from .models import GameWrapper, User
  
-class GameSerializer(serializers.HyperlinkedModelSerializer):
+class GameSerializer(serializers.ModelSerializer):
+    white = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
+    black = serializers.SlugRelatedField(slug_field='username', queryset=User.objects.all())
     class Meta:
         model = GameWrapper
         fields = ('__all__')
+        # extra_kwargs = {
+        #     'url': {'view_name': 'gamewrapper-detail'}  # Ensure this matches the view name
+        # }
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

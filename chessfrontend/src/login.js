@@ -19,6 +19,7 @@ const Login = ({ setAuthToken }) => {
       const response = await axios.post('http://localhost:8000/login/', loginData);
       // Assuming the response contains an access token
       const { access_token } = response.data;
+      localStorage.setItem('authToken', access_token);
       setAuthToken(access_token); // Store the access token in state
       setMessage('Login successful!');
       setError('');
@@ -27,6 +28,8 @@ const Login = ({ setAuthToken }) => {
       setError('Invalid credentials. Please try again.');
     }
   };
+  var autht=localStorage.getItem('authToken');
+  console.log("Auth Token:", autht);
 
   return (
     <div>

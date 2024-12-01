@@ -454,13 +454,16 @@ class GameWrapper(models.Model):
         s=self.moves
         ss=s.split(",")
         game_instance=Game()
+        print("ss: ",ss)
         for s in ss:
             if game_instance.game_end:
                 break
             game_instance.colortomove=game_instance.turncount%2
             # game.curboard.printboard()
-            s=input(f'input your move in the format x1 y1 x2 y2: ')
             l=s.split()
+            if len(l)<4:
+                break
+            print("l: ",l)
             x1=int(l[0])
             y1=int(l[1])
             x2=int(l[2])
@@ -469,6 +472,7 @@ class GameWrapper(models.Model):
         return game_instance
     def add_move(self, move):
         l=move.split()
+        print("l: ",l)
         x1=int(l[0])
         y1=int(l[1])
         x2=int(l[2])
@@ -476,7 +480,14 @@ class GameWrapper(models.Model):
         game_instance = self.to_game_instance()
         game_instance.makepossiblemove(x1,y1,x2,y2)
         self.moves=self.moves+","+move
-        self.serializedboard=game_instance.serializeboard()
+        self.serializedboard=game_instance.curboard.serializeboard()
+    def save(self, *args, **kwargs):
+        # Check if it's a new game (not saved before)
+        print("inside save")
+        if not self.id:
+            game_instance = self.to_game_instance()
+            self.serializedboard = game_instance.curboard.serializeboard()  # Serialize the initial board
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"Game {self.id}: {self.white} vs {self.black}"
 

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Link, Navigate } from 'react-router-dom';
 import Register from './register';
 import Login from './login';
+import GameList from './GameList';
+import GamePage from './GamePage';
 
 const App = () => {
   const [authToken, setAuthToken] = useState(null);
@@ -37,8 +39,13 @@ const App = () => {
           </div>
         ) : (
           <div>
-            <h2>Welcome! You are logged in.</h2>
-            {/* Render logged-in user features here */}
+            {/* <h2>Welcome! You are logged in.</h2>
+            Render logged-in user features here */}
+            <Routes>
+              <Route path="/games" element={<GameList authToken={authToken} />} />
+              <Route path="*" element={<Navigate to="/games" />} />
+              <Route path="/games/:gameId" element={<GamePage authToken={authToken}/>} />
+            </Routes>
           </div>
         )}
       </div>

@@ -1,15 +1,17 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from .serializers import GameSerializer, UserLoginSerializer, UserRegistrationSerializer
-from .models import GameWrapper
+from .models import GameWrapper, User
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from rest_framework.permissions import AllowAny
 
 class GameList(APIView):
     def get(self, request, format=None):
+        print("get in GameList")
         if not request.user.is_authenticated:
             return Response(
                 {'detail': 'Authentication credentials were not provided.'},
@@ -25,6 +27,7 @@ class GameList(APIView):
         return Response(serializer.data)
 
     def post(self, request, format=None):
+        print("post in GameList")
         if not request.user.is_authenticated:
             return Response(
                 {'detail': 'Authentication credentials were not provided.'},
@@ -61,18 +64,21 @@ class GameList(APIView):
             current_turn='white',  # White goes first
         )
         serializer = GameSerializer(game)
-        if serializer.is_valid():
-            # serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # if serializer.is_valid():
+        #     # serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
  
 class GameMatch(APIView):
-    def get(self, request,game_id, format=None):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Authentication credentials were not provided.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+    permission_classes = [AllowAny]
+    def get(self,request,game_id, format=None):
+        print("sdad")
+        # if not request.user.is_authenticated:
+        #     print("ads")
+        #     return Response(
+        #         {'detail': 'Authentication credentials were not provided.'},
+        #         status=status.HTTP_401_UNAUTHORIZED
+        #     )
         try:
             game = GameWrapper.objects.get(id=game_id)
         except GameWrapper.DoesNotExist:
@@ -86,11 +92,12 @@ class GameMatch(APIView):
         return Response(serializer.data) 
 
     def put(self, request,game_id, format=None):
-        if not request.user.is_authenticated:
-            return Response(
-                {'detail': 'Authentication credentials were not provided.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        # if not request.user.is_authenticated:
+        #     return Response(
+        #         {'detail': 'Authentication credentials were not provided.'},
+        #         status=status.HTTP_401_UNAUTHORIZED
+        #     )
+        print("put in GameMatch")
         try:
             game = GameWrapper.objects.get(id=game_id)
         except GameWrapper.DoesNotExist:
@@ -108,6 +115,7 @@ class GameMatch(APIView):
         return Response(serializer.data)
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
@@ -116,7 +124,9 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
+        print("post in login")
         username = request.data.get('username')
         password = request.data.get('password')
 
