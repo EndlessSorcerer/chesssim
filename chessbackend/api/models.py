@@ -126,7 +126,7 @@ class Queen(Piece):
         board = self.cell.board
         a=[1,1,-1,-1,1,0,-1,0]
         b=[1,-1,1,-1,0,1,0,-1]
-        for i in range(4):
+        for i in range(8):
             nx=self.cell.x
             ny=self.cell.y
             while checkvalidcell(nx+a[i],ny+b[i]):
@@ -231,6 +231,7 @@ class Board:
         self.activepieces=[]
         self.game=game
         self.kings=[None,None]
+        self.turncount=0
         self.reset()
     def reset(self):
         # figure out what to do with updatemoves
@@ -322,7 +323,7 @@ class Game():
         self.curboard = Board(self)
         self.iniflag=False
         self.game_end=False
-        self.turncount=0
+        # self.turncount=0
         self.colortomove=0
     def move(self,ox,oy,nx,ny):
         print(f'inside move for {ox}-{oy} to {nx}-{ny}')
@@ -334,7 +335,7 @@ class Game():
             return None
         piecetomove=ocell.piece
         if piecetomove.color!=self.colortomove:
-            print(f'Piece wrong color')
+            print(f'Piece wrong color. Expected color: {self.colortomove}')
             return None
         x=ncell.x
         y=ncell.y
@@ -363,24 +364,30 @@ class Game():
             print(f'Piece cant make illegal move')
             return None
     def makepossiblemove(self,ox,oy,nx,ny):
+        self.colortomove=self.curboard.turncount%2
+        print(f"TRYING TO MAKE MOVE {ox} {oy} {nx} {ny}")
+        print(f"CURRENT TURNCOUNT . IS {self.curboard.turncount}")
         board=self.curboard
         if board.cells[ox][oy].piece==None:
             print("no piece to move!")
-            return
-        if board.cells[ox][oy].piece.color!=board.cells[ox][oy].piece.parentgame.colortomove:
+            return False
+        if board.cells[ox][oy].piece.color!=self.colortomove:
             print("wrong color")
-            return
+            return False
         board.cells[ox][oy].piece.updatemoves()
         nboard=self.move(ox,oy,nx,ny)
         if nboard==None:
             print("invalid move")
+            return False
         else:
+            nboard.turncount=self.curboard.turncount+1
             self.prevstates.append(board)
             self.curboard=nboard
-            self.turncount=self.turncount+1
+            # self.turncount=self.turncount+1
+        return True
     def gamestart(self):
         while not self.game_end:
-            self.colortomove=self.turncount%2
+            self.colortomove=self.curboard.turncount%2
             self.curboard.printboard()
             s=input(f'input your move in the format x1 y1 x2 y2: ')
             l=s.split()
@@ -389,6 +396,63 @@ class Game():
             x2=int(l[2])
             y2=int(l[3])
             self.makepossiblemove(x1,y1,x2,y2)
+
+class GameWrapper(models.Model):
+    white = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='white_games', on_delete=models.CASCADE)
+    black = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='black_games', on_delete=models.CASCADE)
+    moves = models.TextField(default="")
+    current_turn = models.CharField(max_length=10, choices=[('white', 'White'), ('black', 'Black')], default='white')
+    status = models.CharField(max_length=10, choices=[('ongoing', 'Ongoing'), ('finished', 'Finished')], default='ongoing')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    serializedboard = models.TextField(default="")
+    def to_game_instance(self):
+        s=self.moves
+        ss=s.split(",")
+        game_instance=Game()
+        for s in ss:
+            print(f"applying {s} to ")
+            game_instance.curboard.printboard()
+            if game_instance.game_end:
+                break
+            game_instance.colortomove=game_instance.curboard.turncount%2
+            # game.curboard.printboard()
+            l=s.split()
+            if len(l)<4:
+                continue
+            print("l: ",l)
+            x1=int(l[0])
+            y1=int(l[1])
+            x2=int(l[2])
+            y2=int(l[3])
+            game_instance.makepossiblemove(x1,y1,x2,y2)
+        print("CONVERSION TO GAME INSTANCE DONE")
+        return game_instance
+    def add_move(self, move):
+        # l=move.split()
+        # # print("l: ",l)
+        # x1=int(l[0])
+        # y1=int(l[1])
+        # x2=int(l[2])
+        # y2=int(l[3])
+        print(f"INSERTING {move}")
+        game_instance = self.to_game_instance()
+        # b=game_instance.makepossiblemove(x1,y1,x2,y2)
+        # if b:
+        if len(self.moves)>0:
+            self.moves=self.moves+","+move
+        else:
+            self.moves=self.moves+move
+        self.serializedboard=game_instance.curboard.serializeboard()
+    def save(self, *args, **kwargs):
+        # Check if it's a new game (not saved before)
+        print("inside save")
+        if not self.id:
+            game_instance = self.to_game_instance()
+            self.serializedboard = game_instance.curboard.serializeboard()  # Serialize the initial board
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return f"Game {self.id}: {self.white} vs {self.black}"
 
 # class User(models.Model):
 #     username = models.CharField(max_length=255, unique=True)
@@ -453,57 +517,5 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
-
-class GameWrapper(models.Model):
-    white = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='white_games', on_delete=models.CASCADE)
-    black = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='black_games', on_delete=models.CASCADE)
-    moves = models.TextField(default="")
-    current_turn = models.CharField(max_length=10, choices=[('white', 'White'), ('black', 'Black')], default='white')
-    status = models.CharField(max_length=10, choices=[('ongoing', 'Ongoing'), ('finished', 'Finished')], default='ongoing')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    serializedboard = models.TextField(default="")
-    def to_game_instance(self):
-        s=self.moves
-        ss=s.split(",")
-        game_instance=Game()
-        print("ss: ",ss)
-        for s in ss:
-            print(f"applying {s} to ")
-            game_instance.curboard.printboard
-            if game_instance.game_end:
-                break
-            game_instance.colortomove=game_instance.turncount%2
-            # game.curboard.printboard()
-            l=s.split()
-            if len(l)<4:
-                continue
-            print("l: ",l)
-            x1=int(l[0])
-            y1=int(l[1])
-            x2=int(l[2])
-            y2=int(l[3])
-            game_instance.makepossiblemove(x1,y1,x2,y2)
-        return game_instance
-    def add_move(self, move):
-        l=move.split()
-        print("l: ",l)
-        x1=int(l[0])
-        y1=int(l[1])
-        x2=int(l[2])
-        y2=int(l[3])
-        game_instance = self.to_game_instance()
-        game_instance.makepossiblemove(x1,y1,x2,y2)
-        self.moves=self.moves+","+move
-        self.serializedboard=game_instance.curboard.serializeboard()
-    def save(self, *args, **kwargs):
-        # Check if it's a new game (not saved before)
-        print("inside save")
-        if not self.id:
-            game_instance = self.to_game_instance()
-            self.serializedboard = game_instance.curboard.serializeboard()  # Serialize the initial board
-        super().save(*args, **kwargs)
-    def __str__(self):
-        return f"Game {self.id}: {self.white} vs {self.black}"
 
 # Create your models here.

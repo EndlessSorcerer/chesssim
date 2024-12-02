@@ -127,7 +127,7 @@ class Queen(Piece):
         board = self.cell.board
         a=[1,1,-1,-1,1,0,-1,0]
         b=[1,-1,1,-1,0,1,0,-1]
-        for i in range(4):
+        for i in range(8):
             nx=self.cell.x
             ny=self.cell.y
             while checkvalidcell(nx+a[i],ny+b[i]):
@@ -232,6 +232,7 @@ class Board:
         self.activepieces=[]
         self.game=game
         self.kings=[None,None]
+        self.turncount=0
         self.reset()
     def reset(self):
         # figure out what to do with updatemoves
@@ -301,17 +302,18 @@ class Board:
                 else:
                     print(". ",end="")
             print("\n")
+        print(f'{self.game.colortomove} to move and turn is {self.turncount}')
+        # print(id(self.game))
 
 class Game:
     def __init__(self):
         self.prevstates = []
         self.whiteturn = True
+        self.game_end=False
+        self.colortomove=0
         self.iniflag=True
         self.curboard = Board(self)
         self.iniflag=False
-        self.game_end=False
-        self.turncount=0
-        self.colortomove=0
     def move(self,ox,oy,nx,ny):
         print(f'inside move for {ox}-{oy} to {nx}-{ny}')
         nboard=copy.deepcopy(self.curboard)
@@ -360,13 +362,13 @@ class Game:
         if nboard==None:
             print("invalid move")
         else:
+            nboard.turncount=self.curboard.turncount+1
             self.prevstates.append(board)
             self.curboard=nboard
     def gamestart(self):
         while not self.game_end:
-            self.colortomove=self.turncount%2
-            game.curboard.printboard()
-            print(f"{self.colortomove} move")
+            self.colortomove=self.curboard.turncount%2
+            print(f"{self.colortomove} move and turn is {self.curboard.turncount}")
             s=input(f'input your move in the format x1 y1 x2 y2: ')
             l=s.split()
             x1=int(l[0])
@@ -374,7 +376,11 @@ class Game:
             x2=int(l[2])
             y2=int(l[3])
             self.makepossiblemove(x1,y1,x2,y2)
-            self.turncount=self.turncount+1
+            # self.turncount=self.turncount+1
+            self.curboard.printboard()
+            print(f"{self.curboard.game.colortomove} move and turn is {self.curboard.turncount}")
+            print(f"{self.colortomove} move and turn is {self.curboard.turncount}")
+            # print(id(self))
     # def start(self):
 
 game=Game()

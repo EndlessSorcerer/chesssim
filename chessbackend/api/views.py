@@ -88,6 +88,9 @@ class GameMatch(APIView):
                 {"error": "You are not a participant in this game."},
                 status=status.HTTP_403_FORBIDDEN
             )
+        game_instance = game.to_game_instance()
+        game.serializedboard=game_instance.curboard.serializeboard()
+        print("serialized board: ",game.serializedboard)
         serializer = GameSerializer(game)
         return Response(serializer.data) 
 
@@ -110,7 +113,18 @@ class GameMatch(APIView):
         move = request.data.get("move")
         if not move:
             return Response({"error": "Move is required"}, status=status.HTTP_400_BAD_REQUEST)
-        game.add_move(move)
+        l=move.split()
+        print("l: ",l)
+        x1=int(l[0])
+        y1=int(l[1])
+        x2=int(l[2])
+        y2=int(l[3])
+        print("LOADING UP GAME INSTANCE IN VIEW")
+        game_instance = game.to_game_instance()
+        print(f"CURRENT TURNCOUNT IS {game_instance.curboard.turncount}")
+        b=game_instance.makepossiblemove(x1,y1,x2,y2)
+        if b:
+            game.add_move(move)
         game.save()
         serializer = GameSerializer(game) 
         return Response(serializer.data)

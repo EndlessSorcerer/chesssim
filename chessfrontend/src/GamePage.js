@@ -87,7 +87,7 @@ const GamePage = ({ authToken }) => {
       }
     };
     fetchGameDetails();
-  }, [gameId, authToken]);
+  }, [gameId, authToken,selectedCells]);
 
   if (!game) return <p>Loading...</p>;
 
