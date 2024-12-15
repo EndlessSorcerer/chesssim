@@ -18,13 +18,14 @@ class GameList(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
         # games = GameWrapper.objects.all()
-        games = GameWrapper.objects.filter(
-            white=request.user
-        ) | GameWrapper.objects.filter(
-            black=request.user
-        )
-        serializer = GameSerializer(games, many=True) 
-        return Response(serializer.data)
+        accepted_games = GameWrapper.objects.filter((Q(white=request.user) | Q(black=request.user)) & Q(challenge_status='accepted'))
+        pending_games = GameWrapper.objects.filter((Q(challengee=request.user)) & Q(challenge_status='pending'))
+        accepted_games_serializer = GameSerializer(accepted_games, many=True)
+        pending_games_serializer = GameSerializer(pending_games, many=True) 
+        return Response({
+            'accepted_games': accepted_games_serializer.data,
+            'pending_games': pending_games_serializer.data
+        })
 
     def post(self, request, format=None):
         print("post in GameList")
@@ -55,12 +56,23 @@ class GameList(APIView):
                 {'detail': 'You cannot play with yourself.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        white=request.user
+        existing_challenge = GameWrapper.objects.filter(
+            challenger=request.user, challengee=opponent, challenge_status='pending'
+        ).first()
+        if existing_challenge:
+            return Response(
+                {'detail': 'A pending challenge already exists with this user.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        white=request.user # add randomizing?
         black=opponent
         game = GameWrapper.objects.create(
             white=white,
             black=black,
+            challenger=request.user,
+            challengee=opponent,
             status='ongoing',  # Default status
+            current_status='pending',
             current_turn='white',  # White goes first
         )
         serializer = GameSerializer(game)

@@ -118,6 +118,7 @@ class Knight(Piece):
                     continue
                 self.validmoves.append([[nx,ny],None])
 
+# Movement needs fixing
 class Queen(Piece):
     def __init__(self,label,cell,color):
         super().__init__(label,cell,color)
@@ -398,6 +399,11 @@ class Game():
             self.makepossiblemove(x1,y1,x2,y2)
 
 class GameWrapper(models.Model):
+    GAME_INITIAL_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+    ]
     white = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='white_games', on_delete=models.CASCADE)
     black = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='black_games', on_delete=models.CASCADE)
     moves = models.TextField(default="")
@@ -405,7 +411,26 @@ class GameWrapper(models.Model):
     status = models.CharField(max_length=10, choices=[('ongoing', 'Ongoing'), ('finished', 'Finished')], default='ongoing')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    challenger = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='challenger_games', on_delete=models.CASCADE)
+    challengee = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='challengee_games', on_delete=models.CASCADE)
+    challenge_status = models.CharField(
+        max_length=10, 
+        choices=GAME_INITIAL_STATUS_CHOICES, 
+        default='pending'
+    )
     serializedboard = models.TextField(default="")
+    def set_accepted(self):
+        if self.challenge_status != 'pending':
+            raise ValueError("Challenge is no longer pending.")
+        self.challenge_status = 'accepted'
+        # self.serializedboard = Game().curboard.serializeboard()
+        # self.save()
+    def set_declined(self):
+        if self.challenge_status != 'pending':
+            raise ValueError("Challenge is no longer pending.")
+        self.challenge_status = 'declined'
+        # self.serializedboard = Game().curboard.serializeboard()
+        # self.save()
     def to_game_instance(self):
         s=self.moves
         ss=s.split(",")
